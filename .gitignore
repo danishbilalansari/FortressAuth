@@ -1,0 +1,72 @@
+# Build results
+bin/
+obj/
+out/
+
+# Rider project files
+.idea/
+
+# Visual Studio specific
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vspx
+*.vspscc
+.vs/
+
+# ReSharper
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuspec
+.nuget/
+packages/
+project.lock.json
+
+# Logs
+*.log
+
+# Runtime files
+*.pidb
+*.mdb
+*.cache
+*.db
+*.db-shm
+*.db-wal
+
+# Tests
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Swashbuckle / Swagger
+swagger/
+*.swagger.json
+
+# Secrets
+secrets.json
+appsettings.*.local.json
+appsettings.Development.json
+
+# User uploads (if any future plans)
+wwwroot/uploads/
+wwwroot/temp/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Rider test temp
+.idea/.idea_modules/
+.idea/modules.xml
+
+# Dotnet watch/restore/temp files
+*.~proj
+*.tmp

@@ -14,18 +14,18 @@ public class MfaController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly TOTPService _totpService;
-    private readonly MfaRecoveryCodeService _recoveryCodeService;
+    private readonly MfaRecoveryCodeService _recoveryService;
     private readonly ApplicationDbContext _context;
 
     public MfaController(
         UserManager<ApplicationUser> userManager,
         TOTPService totpService,
-        MfaRecoveryCodeService recoveryCodeService,
+        MfaRecoveryCodeService recoveryService,
         ApplicationDbContext context)
     {
         _userManager = userManager;
         _totpService = totpService;
-        _recoveryCodeService = recoveryCodeService;
+        _recoveryService = recoveryService;
         _context = context;
     }
 
@@ -43,8 +43,7 @@ public class MfaController : Controller
         }
 
         var email = await _userManager.GetEmailAsync(user);
-        var issuer = "FortressAuth";
-        var qrCodeUri = _totpService.GenerateQrCodeUri(email, secretKey, issuer);
+        var qrCodeUri = _totpService.GenerateQrCodeUri(email, secretKey, "FortressAuth");
 
         return View(new MfaSetupViewModel
         {
@@ -64,11 +63,11 @@ public class MfaController : Controller
         {
             await _userManager.SetTwoFactorEnabledAsync(user, true);
 
-            // Generate recovery codes
-            var codes = _recoveryCodeService.GenerateNewCodes();
+            // Generate and store recovery codes
+            var codes = _recoveryService.GenerateNewCodes().ToList();
             await ReplaceRecoveryCodesAsync(user, codes);
 
-            TempData["RecoveryCodes"] = codes.ToList();
+            TempData["RecoveryCodes"] = codes;
             return RedirectToAction("ShowRecoveryCodes");
         }
 
@@ -79,7 +78,7 @@ public class MfaController : Controller
     [HttpGet]
     public IActionResult ShowRecoveryCodes()
     {
-        var codes = (List<string>)TempData["RecoveryCodes"];
+        var codes = TempData["RecoveryCodes"] as List<string>;
         if (codes == null) return RedirectToAction("Setup");
 
         return View("RecoveryCodes", codes);
@@ -92,7 +91,9 @@ public class MfaController : Controller
         if (user == null) return NotFound();
 
         var recoveryCode = await _context.RecoveryCodes
-            .FirstOrDefaultAsync(rc => rc.UserId == user.Id && rc.Code == code && !rc.IsUsed);
+            .FirstOrDefaultAsync(rc => rc.UserId == user.Id &&
+                                     rc.Code == code &&
+                                     !rc.IsUsed);
 
         if (recoveryCode != null)
         {
@@ -108,7 +109,7 @@ public class MfaController : Controller
         return View("Verify");
     }
 
-    private async Task ReplaceRecoveryCodesAsync(ApplicationUser user, IEnumerable<string> newCodes)
+    private async Task ReplaceRecoveryCodesAsync(ApplicationUser user, List<string> newCodes)
     {
         // Remove old codes
         var oldCodes = await _context.RecoveryCodes
@@ -127,4 +128,5 @@ public class MfaController : Controller
 
         await _context.SaveChangesAsync();
     }
+}
 }

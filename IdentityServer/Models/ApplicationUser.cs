@@ -6,5 +6,5 @@ public class ApplicationUser : IdentityUser
 {
     public string MfaSecret { get; set; }
     public bool MfaEnabled { get; set; }
-    public ICollection<MfaRecoveryCode> RecoveryCodes { get; set; } = new List<MfaRecoveryCode>();
+    public List<MfaRecoveryCode> RecoveryCodes { get; set; } = new List<MfaRecoveryCode>();
 }

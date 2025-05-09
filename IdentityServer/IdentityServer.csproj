@@ -9,7 +9,10 @@
   <ItemGroup>
     <PackageReference Include="Duende.IdentityServer" Version="7.2.3" />
     <PackageReference Include="Duende.IdentityServer.AspNetIdentity" Version="7.2.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.4" />
+	<PackageReference Include="Microsoft.AspNetCore.Identity" Version="9.0.4" />
+	<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.4" />
+	<PackageReference Include="Microsoft.AspNetCore.Identity.Core" Version="9.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.4" />
     <PackageReference Include="Otp.NET" Version="1.4.0" />
   </ItemGroup>
 

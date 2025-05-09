@@ -1,6 +1,8 @@
+using Duende.IdentityServer;
 using IdentityServer.Data;
 using IdentityServer.Models;
 using IdentityServer.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,7 +49,7 @@ builder.Services.Configure<AuthenticatorTokenProviderOptions>(options =>
 
 // Application Services
 builder.Services.AddScoped<MfaRecoveryCodeService>();
-builder.Services.AddScoped<TOTPService>(); 
+builder.Services.AddScoped<TOTPService>();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 
 var app = builder.Build();
@@ -55,7 +57,7 @@ var app = builder.Build();
 // Middleware Pipeline
 app.UseStaticFiles();
 app.UseRouting();
-app.UseIdentityServer();
+app.UseIdentityServer(); // This must come before UseAuthorization
 app.UseAuthorization();
 
 app.MapControllerRoute(

@@ -1,0 +1,45 @@
+﻿@model List<string>
+
+<div class="recovery-codes-container">
+    <div class="alert alert-warning">
+        <h4>Save these recovery codes!</h4>
+        <p>You won't be able to view them again.</p>
+    </div>
+
+    <div class="codes">
+        @foreach (var code in Model)
+        {
+            <div class="code">@code</div>
+        }
+    </div>
+
+    <div class="actions">
+        <button onclick="window.print()" class="btn btn-secondary">Print Codes</button>
+        <a href="@Url.Action("Index", "Home")" class="btn btn-primary">Done</a>
+    </div>
+</div>
+
+<style>
+    .codes {
+        column-count: 2;
+        column-gap: 2rem;
+        margin: 2rem 0;
+    }
+
+    .code {
+        font-family: monospace;
+        font-size: 1.1rem;
+        padding: 0.5rem;
+        break-inside: avoid;
+    }
+
+    @@media print {
+        .actions {
+            display: none;
+        }
+
+        .alert {
+            break-after: avoid;
+        }
+    }
+</style>

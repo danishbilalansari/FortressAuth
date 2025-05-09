@@ -1,0 +1,18 @@
+﻿@model IdentityServer.Models.MfaViewModels.MfaSetupViewModel
+
+<div class="mfa-setup">
+    <h3>Set Up Multi-Factor Authentication</h3>
+    <div class="qr-code">
+        <img src="@Model.QrCodeUri" alt="MFA QR Code" />
+    </div>
+    <div class="manual-entry">
+        <p>Or enter this code manually: <strong>@Model.SecretKey</strong></p>
+    </div>
+    <form asp-action="VerifySetup" method="post">
+        <div class="form-group">
+            <label>Verification Code</label>
+            <input type="text" name="code" class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-primary">Verify & Enable</button>
+    </form>
+</div>

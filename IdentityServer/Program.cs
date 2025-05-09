@@ -1,26 +1,65 @@
+using IdentityServer.Data;
+using IdentityServer.Models;
+using IdentityServer.Services;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorPages();
+builder.Services.AddControllersWithViews();
+
+// Database Context
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Identity Configuration
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = true;
+    options.Tokens.AuthenticatorTokenProvider = TokenOptions.DefaultAuthenticatorProvider;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders()
+.AddTokenProvider<AuthenticatorTokenProvider<ApplicationUser>>(TokenOptions.DefaultAuthenticatorProvider);
+
+// IdentityServer Configuration
+builder.Services.AddIdentityServer(options =>
+{
+    options.Events.RaiseErrorEvents = true;
+    options.Events.RaiseInformationEvents = true;
+    options.Events.RaiseFailureEvents = true;
+    options.Events.RaiseSuccessEvents = true;
+    options.Authentication.CookieLifetime = TimeSpan.FromHours(12);
+})
+.AddInMemoryIdentityResources(Config.IdentityResources)
+.AddInMemoryApiScopes(Config.ApiScopes)
+.AddInMemoryClients(Config.Clients)
+.AddAspNetIdentity<ApplicationUser>()
+.AddProfileService<CustomProfileService>();
+
+// TOTP Configuration
+builder.Services.Configure<AuthenticatorTokenProviderOptions>(options =>
+{
+    options.CodeLength = 6;
+    options.TimeStep = TimeSpan.FromSeconds(30);
+});
+
+// Application Services
+builder.Services.AddScoped<MfaRecoveryCodeService>();
+builder.Services.AddScoped<TOTPService>(); 
+builder.Services.AddTransient<IEmailSender, EmailSender>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-
+// Middleware Pipeline
+app.UseStaticFiles();
 app.UseRouting();
-
+app.UseIdentityServer();
 app.UseAuthorization();
 
-app.MapStaticAssets();
-app.MapRazorPages()
-   .WithStaticAssets();
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();

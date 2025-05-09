@@ -1,0 +1,35 @@
+﻿@model IdentityServer.Models.MfaViewModels.VerifyViewModel
+
+<div class="mfa-verify">
+    <h3>Enter Verification Code</h3>
+    <form asp-action="Verify" method="post">
+        <input type="hidden" asp-for="ReturnUrl" />
+
+        <div class="form-group">
+            <label>Code from authenticator app:</label>
+            <input asp-for="Code" class="form-control" autocomplete="off" />
+            <span asp-validation-for="Code" class="text-danger"></span>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Verify</button>
+    </form>
+
+    <div class="recovery-link">
+        <a href="@Url.Action("UseRecovery", new { ReturnUrl = Model.ReturnUrl })">Use recovery code instead</a>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeInput = document.getElementById('Code');
+            codeInput.focus();
+
+            codeInput.addEventListener('input', function() {
+                if (this.value.length === 6) {
+                    this.form.submit();
+                }
+            });
+        });
+    </script>
+}

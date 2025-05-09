@@ -1,0 +1,28 @@
+﻿@model IdentityServer.Models.AccountViewModels.LoginViewModel
+
+<div class="login-container">
+    <h2>Login to FortressAuth</h2>
+    <form asp-route="Login">
+        <div class="form-group">
+            <label asp-for="Username"></label>
+            <input asp-for="Username" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label asp-for="Password"></label>
+            <input asp-for="Password" type="password" class="form-control" />
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Login</button>
+        </div>
+    </form>
+
+    <!-- MFA Section (shown only when MFA is required) -->
+    <div id="mfaSection" style="@(Model.RequiresMfa ? "" : "display:none")">
+        <h4>Enter your MFA Code</h4>
+        <form asp-controller="Mfa" asp-action="Verify">
+            <input type="text" name="code" placeholder="6-digit code" />
+            <button type="submit" class="btn btn-secondary">Verify</button>
+        </form>
+        <a href="#" id="useRecoveryLink">Use recovery code instead</a>
+    </div>
+</div>

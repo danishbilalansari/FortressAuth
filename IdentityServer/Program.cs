@@ -1,8 +1,6 @@
-using Duende.IdentityServer;
 using IdentityServer.Data;
 using IdentityServer.Models;
 using IdentityServer.Services;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,13 +37,6 @@ builder.Services.AddIdentityServer(options =>
 .AddInMemoryClients(Config.Clients)
 .AddAspNetIdentity<ApplicationUser>()
 .AddProfileService<CustomProfileService>();
-
-// TOTP Configuration
-builder.Services.Configure<AuthenticatorTokenProviderOptions>(options =>
-{
-    options.CodeLength = 6;
-    options.TimeStep = TimeSpan.FromSeconds(30);
-});
 
 // Application Services
 builder.Services.AddScoped<MfaRecoveryCodeService>();

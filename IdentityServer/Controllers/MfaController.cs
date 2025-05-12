@@ -129,4 +129,3 @@ public class MfaController : Controller
         await _context.SaveChangesAsync();
     }
 }
-}

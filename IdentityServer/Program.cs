@@ -40,13 +40,6 @@ builder.Services.AddIdentityServer(options =>
 .AddAspNetIdentity<ApplicationUser>()
 .AddProfileService<CustomProfileService>();
 
-// TOTP Configuration
-builder.Services.Configure<AuthenticatorTokenProviderOptions>(options =>
-{
-    options.CodeLength = 6;
-    options.TimeStep = TimeSpan.FromSeconds(30);
-});
-
 // Application Services
 builder.Services.AddScoped<MfaRecoveryCodeService>();
 builder.Services.AddScoped<TOTPService>();

@@ -1,6 +1,6 @@
-﻿namespace IdentityServer.Models;
+﻿using Shared.Models;
 
-public class MfaRecoveryCode
+public class MfaRecoveryCodeExtensions
 {
     public int Id { get; set; }
     public string Code { get; set; }

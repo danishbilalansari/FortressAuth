@@ -3,6 +3,7 @@ using IdentityServer.Models.AccountViewModels;
 using IdentityServer.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Shared.Models;
 
 namespace IdentityServer.Controllers;
 

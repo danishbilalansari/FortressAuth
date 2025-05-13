@@ -1,8 +1,8 @@
 using IdentityServer.Data;
-using IdentityServer.Models;
 using IdentityServer.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Shared.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 

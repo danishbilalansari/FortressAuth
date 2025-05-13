@@ -1,8 +1,8 @@
 ﻿using Duende.IdentityModel;
 using Duende.IdentityServer.Models;
 using Duende.IdentityServer.Services;
-using IdentityServer.Models;
 using Microsoft.AspNetCore.Identity;
+using Shared.Models;
 using System.Security.Claims;
 
 namespace IdentityServer.Services;

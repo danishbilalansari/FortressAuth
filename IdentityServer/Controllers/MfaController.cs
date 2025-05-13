@@ -1,131 +1,216 @@
 ﻿using IdentityServer.Data;
-using IdentityServer.Models;
 using IdentityServer.Models.MfaViewModels;
 using IdentityServer.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Shared.Models;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace IdentityServer.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class MfaController : Controller
+[Authorize] // Require authentication for all endpoints
+public class MfaController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly TOTPService _totpService;
     private readonly MfaRecoveryCodeService _recoveryService;
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<MfaController> _logger;
 
     public MfaController(
         UserManager<ApplicationUser> userManager,
         TOTPService totpService,
         MfaRecoveryCodeService recoveryService,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        ILogger<MfaController> logger)
     {
         _userManager = userManager;
         _totpService = totpService;
         _recoveryService = recoveryService;
         _context = context;
+        _logger = logger;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> Setup()
+    [HttpGet("setup")]
+    public async Task<IActionResult> SetupMfa()
     {
-        var user = await _userManager.GetUserAsync(User);
-        if (user == null) return NotFound();
-
-        var secretKey = await _userManager.GetAuthenticatorKeyAsync(user);
-        if (string.IsNullOrEmpty(secretKey))
+        try
         {
-            await _userManager.ResetAuthenticatorKeyAsync(user);
-            secretKey = await _userManager.GetAuthenticatorKeyAsync(user);
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return NotFound("User not found");
+
+            // Generate or get existing secret key
+            var secretKey = await _userManager.GetAuthenticatorKeyAsync(user)
+                ?? await ResetAuthenticatorKey(user);
+
+            var qrCodeUri = _totpService.GenerateQrCodeUri(
+                user.Email,
+                secretKey,
+                "FortressAuth");
+
+            return Ok(new MfaSetupViewModel
+            {
+                SecretKey = secretKey,
+                QrCodeUri = qrCodeUri,
+                IsMfaEnabled = user.MfaEnabled
+            });
         }
-
-        var email = await _userManager.GetEmailAsync(user);
-        var qrCodeUri = _totpService.GenerateQrCodeUri(email, secretKey, "FortressAuth");
-
-        return View(new MfaSetupViewModel
+        catch (Exception ex)
         {
-            SecretKey = secretKey,
-            QrCodeUri = qrCodeUri
-        });
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> VerifySetup(string code)
-    {
-        var user = await _userManager.GetUserAsync(User);
-        if (user == null) return NotFound();
-
-        var secretKey = await _userManager.GetAuthenticatorKeyAsync(user);
-        if (_totpService.ValidateCode(secretKey, code))
-        {
-            await _userManager.SetTwoFactorEnabledAsync(user, true);
-
-            // Generate and store recovery codes
-            var codes = _recoveryService.GenerateNewCodes().ToList();
-            await ReplaceRecoveryCodesAsync(user, codes);
-
-            TempData["RecoveryCodes"] = codes;
-            return RedirectToAction("ShowRecoveryCodes");
+            _logger.LogError(ex, "Error setting up MFA");
+            return StatusCode(500, "An error occurred during MFA setup");
         }
-
-        ModelState.AddModelError("", "Invalid verification code");
-        return View("Setup");
     }
 
-    [HttpGet]
-    public IActionResult ShowRecoveryCodes()
+    [HttpPost("verify")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> VerifyMfa([FromBody] VerifyMfaRequest request)
     {
-        var codes = TempData["RecoveryCodes"] as List<string>;
-        if (codes == null) return RedirectToAction("Setup");
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        return View("RecoveryCodes", codes);
+        try
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return NotFound("User not found");
+
+            var secretKey = await _userManager.GetAuthenticatorKeyAsync(user);
+            if (string.IsNullOrEmpty(secretKey))
+                return BadRequest("No MFA secret key found");
+
+            if (_totpService.ValidateCode(secretKey, request.Code))
+            {
+                await _userManager.SetTwoFactorEnabledAsync(user, true);
+                user.MfaEnabled = true;
+                await _userManager.UpdateAsync(user);
+
+                // Generate and return recovery codes (hashed)
+                var recoveryCodes = await GenerateAndStoreRecoveryCodes(user);
+
+                return Ok(new
+                {
+                    Success = true,
+                    RecoveryCodes = recoveryCodes
+                });
+            }
+
+            return BadRequest("Invalid verification code");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying MFA code");
+            return StatusCode(500, "An error occurred during MFA verification");
+        }
     }
 
-    [HttpPost]
-    public async Task<IActionResult> UseRecoveryCode(string code, string returnUrl)
+    [HttpGet("recovery-codes")]
+    public async Task<IActionResult> GetRecoveryCodes()
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return NotFound();
 
-        var recoveryCode = await _context.RecoveryCodes
-            .FirstOrDefaultAsync(rc => rc.UserId == user.Id &&
-                                     rc.Code == code &&
-                                     !rc.IsUsed);
+        if (!user.MfaEnabled)
+            return BadRequest("MFA is not enabled");
 
-        if (recoveryCode != null)
+        var validCodes = await _context.RecoveryCodes
+            .Where(rc => rc.UserId == user.Id && !rc.IsUsed && !rc.IsExpired())
+            .ToListAsync();
+
+        return Ok(new { Count = validCodes.Count });
+    }
+
+    [HttpPost("recovery-codes/generate")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateNewRecoveryCodes()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return NotFound();
+
+        if (!user.MfaEnabled)
+            return BadRequest("MFA is not enabled");
+
+        var newCodes = await GenerateAndStoreRecoveryCodes(user);
+        return Ok(new { RecoveryCodes = newCodes });
+    }
+
+    [HttpPost("recovery-codes/use")]
+    public async Task<IActionResult> UseRecoveryCode([FromBody] UseRecoveryCodeRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
         {
-            recoveryCode.IsUsed = true;
-            _context.Update(recoveryCode);
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return NotFound();
+
+            // Find and validate the recovery code
+            var recoveryCode = await _context.RecoveryCodes
+                .FirstOrDefaultAsync(rc =>
+                    rc.UserId == user.Id &&
+                    !rc.IsUsed &&
+                    !rc.IsExpired() &&
+                    rc.CodeHash == HashCode(request.Code));
+
+            if (recoveryCode == null)
+                return BadRequest("Invalid or expired recovery code");
+
+            // Mark code as used
+            recoveryCode.MarkAsUsed();
             await _context.SaveChangesAsync();
 
+            // Refresh security stamp
             await _userManager.UpdateSecurityStampAsync(user);
-            return Redirect(returnUrl ?? "/");
-        }
 
-        ModelState.AddModelError("", "Invalid recovery code");
-        return View("Verify");
+            return Ok(new { Success = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error using recovery code");
+            return StatusCode(500, "An error occurred");
+        }
     }
 
-    private async Task ReplaceRecoveryCodesAsync(ApplicationUser user, List<string> newCodes)
+    private async Task<string> ResetAuthenticatorKey(ApplicationUser user)
     {
+        await _userManager.ResetAuthenticatorKeyAsync(user);
+        return await _userManager.GetAuthenticatorKeyAsync(user);
+    }
+
+    private async Task<List<string>> GenerateAndStoreRecoveryCodes(ApplicationUser user)
+    {
+        // Generate new codes (plaintext for one-time display)
+        var newCodes = _recoveryService.GenerateNewCodes().ToList();
+
         // Remove old codes
         var oldCodes = await _context.RecoveryCodes
             .Where(rc => rc.UserId == user.Id)
             .ToListAsync();
         _context.RecoveryCodes.RemoveRange(oldCodes);
 
-        // Add new codes
-        var recoveryCodes = newCodes.Select(c => new MfaRecoveryCode
+        // Store hashed versions
+        var recoveryCodes = newCodes.Select(code => new MfaRecoveryCode
         {
-            Code = c,
+            CodeHash = HashCode(code),
             UserId = user.Id,
-            IsUsed = false
-        });
-        await _context.RecoveryCodes.AddRangeAsync(recoveryCodes);
+            ExpiryDate = DateTime.UtcNow.AddMonths(3)
+        }).ToList();
 
+        await _context.RecoveryCodes.AddRangeAsync(recoveryCodes);
         await _context.SaveChangesAsync();
+
+        return newCodes;
+    }
+
+    private string HashCode(string code)
+    {
+        using var sha256 = SHA256.Create();
+        var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(code));
+        return Convert.ToBase64String(bytes);
     }
 }

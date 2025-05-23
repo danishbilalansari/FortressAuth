@@ -1,6 +1,8 @@
-﻿using IdentityServer.Models;
+﻿using IdentityServer.Extension;
+using IdentityServer.Models;
 using IdentityServer.Models.AccountViewModels;
 using IdentityServer.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Models;
@@ -43,6 +45,13 @@ public class AccountController : Controller
             }
             if (result.Succeeded)
             {
+                var user = await _userManager.FindByNameAsync(model.Username);
+
+                if (user.RequiresMfaSetup())
+                {
+                    return RedirectToAction("Setup", "Mfa");
+                }
+
                 return Redirect(model.ReturnUrl ?? "/");
             }
         }
@@ -77,5 +86,19 @@ public class AccountController : Controller
     {
         await _signInManager.SignOutAsync();
         return RedirectToAction("Index", "Home");
+    }
+
+    [Authorize]
+    [HttpGet("profile")]
+    public async Task<IActionResult> Profile()
+    {
+        var user = await _userManager.GetUserAsync(User);
+
+        if (user == null)
+        {
+            return NotFound();
+        }
+
+        return View(user);
     }
 }

@@ -1,0 +1,87 @@
+﻿@using IdentityServer.Extensions;
+@using Microsoft.EntityFrameworkCore;
+@model Shared.Models.ApplicationUser;
+@inject IdentityServer.Data.ApplicationDbContext DbContext;
+
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h3>User Profile</h3>
+        </div>
+        <div class="card-body">
+            <!-- User Information Section -->
+            <div class="mb-4">
+                <h4>@Model.GetFullName()</h4>
+                <dl class="row">
+                    <dt class="col-sm-3">Email</dt>
+                    <dd class="col-sm-9">@Model.Email</dd>
+
+                    <dt class="col-sm-3">Account Created</dt>
+                    <dd class="col-sm-9">@Model.CreatedAt.ToString("d")</dd>
+                </dl>
+            </div>
+
+            <!-- MFA Status Section -->
+            <div class="mb-4">
+                <h5>Multi-Factor Authentication</h5>
+                @if (Model.MfaEnabled)
+                {
+                    <div class="alert alert-success">
+                        <i class="fas fa-shield-alt"></i> MFA is enabled
+                    </div>
+
+                    var recoveryCodes = await DbContext.RecoveryCodes
+                    .Where(rc => rc.UserId == Model.Id && !rc.IsUsed && !rc.IsExpired())
+                    .ToListAsync();
+
+                    <div class="mt-3">
+                        <h6>Recovery Codes</h6>
+                        @if (recoveryCodes.Any())
+                        {
+                            <p>You have @recoveryCodes.Count valid recovery codes.</p>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                The following codes will expire soon:
+                                <ul class="mt-2">
+                                    @foreach (var code in recoveryCodes.Where(c => c.GetRemainingValidity().TotalDays < 7))
+                                    {
+                                        <li>Expires in @Math.Ceiling(code.GetRemainingValidity().TotalDays) days</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle"></i>
+                                You have no active recovery codes!
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning">
+                        <i class="fas fa-shield-virus"></i> MFA is not enabled
+                    </div>
+                    <a href="@Url.Action("Setup", "Mfa")" class="btn btn-primary">
+                        <i class="fas fa-lock"></i> Set Up MFA
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .card {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        dt {
+            font-weight: 500;
+        }
+    </style>
+}

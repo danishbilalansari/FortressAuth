@@ -1,4 +1,5 @@
 ﻿using IdentityServer.Data;
+using IdentityServer.Extension;
 using IdentityServer.Models.MfaViewModels;
 using IdentityServer.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -42,7 +43,12 @@ public class MfaController : ControllerBase
         try
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user == null) return NotFound("User not found");
+            if (user == null) return NotFound();
+
+            if (!user.RequiresMfaSetup())
+            {
+                return BadRequest("MFA is already configured");
+            }
 
             // Generate or get existing secret key
             var secretKey = await _userManager.GetAuthenticatorKeyAsync(user)
@@ -186,6 +192,16 @@ public class MfaController : ControllerBase
     {
         // Generate new codes (plaintext for one-time display)
         var newCodes = _recoveryService.GenerateNewCodes().ToList();
+
+        // Using extension via LINQ
+        var expiringSoon = await _context.RecoveryCodes
+            .Where(rc => rc.UserId == user.Id && rc.IsExpired())
+            .ToListAsync();
+
+        if (expiringSoon.Any())
+        {
+            _logger.LogWarning($"User {user.GetDisplayName()} has {expiringSoon.Count} codes expiring soon");
+        }
 
         // Remove old codes
         var oldCodes = await _context.RecoveryCodes

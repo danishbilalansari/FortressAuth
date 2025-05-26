@@ -1,16 +1,16 @@
-using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WebApp.Models;
+using WebApp.Services;
 
 namespace WebApp.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
+    private readonly IApiClientService _apiService;
 
-    public HomeController(ILogger<HomeController> logger)
+    public HomeController(IApiClientService apiService)
     {
-        _logger = logger;
+        _apiService = apiService;
     }
 
     public IActionResult Index()
@@ -18,14 +18,16 @@ public class HomeController : Controller
         return View();
     }
 
-    public IActionResult Privacy()
+    [Authorize]
+    public async Task<IActionResult> SecureData()
     {
-        return View();
+        var data = await _apiService.GetSecureDataAsync();
+        return View(data);
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
-        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        return View();
     }
 }

@@ -12,31 +12,40 @@ public class ApiClientService : IApiClientService
         HttpClient httpClient,
         IHttpContextAccessor httpContextAccessor)
     {
-        _httpClient = httpClient;
-        _httpContextAccessor = httpContextAccessor;
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
         _httpClient.BaseAddress = new Uri("https://localhost:5002/api/");
+    }
+
+    private async Task SetAuthorizationHeader()
+    {
+        var context = _httpContextAccessor.HttpContext ?? 
+            throw new InvalidOperationException("HttpContext is not available");
+        
+        var token = await context.GetTokenAsync("access_token") ?? 
+            throw new InvalidOperationException("Access token not found");
+        
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
     public async Task<string> GetSecureDataAsync()
     {
-        var token = await _httpContextAccessor.HttpContext.GetTokenAsync("access_token");
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
+        await SetAuthorizationHeader();
         var response = await _httpClient.GetAsync("secure/mfa-protected");
         return await HandleResponse(response);
     }
 
     public async Task<string> GetAdminDataAsync()
     {
-        var token = await _httpContextAccessor.HttpContext.GetTokenAsync("access_token");
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
+        await SetAuthorizationHeader();
         var response = await _httpClient.GetAsync("secure/admin-data");
         return await HandleResponse(response);
     }
 
     private async Task<string> HandleResponse(HttpResponseMessage response)
     {
+        ArgumentNullException.ThrowIfNull(response);
+
         if (response.IsSuccessStatusCode)
         {
             return await response.Content.ReadAsStringAsync();
@@ -48,9 +57,7 @@ public class ApiClientService : IApiClientService
 
     public async Task<string> GetUserProfileAsync()
     {
-        var token = await _httpContextAccessor.HttpContext.GetTokenAsync("access_token");
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
+        await SetAuthorizationHeader();
         var response = await _httpClient.GetAsync("user/profile");
         return await HandleResponse(response);
     }

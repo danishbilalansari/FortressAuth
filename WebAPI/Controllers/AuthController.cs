@@ -17,14 +17,18 @@ public class AuthController : ControllerBase
         ITokenService tokenService,
         UserManager<ApplicationUser> userManager)
     {
-        _tokenService = tokenService;
-        _userManager = userManager;
+        _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
+        _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
     }
 
     [HttpPost("token")]
     [AllowAnonymous]
     public async Task<IActionResult> GetToken([FromBody] LoginRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Username);
+        ArgumentNullException.ThrowIfNull(request.Password);
+
         var user = await _userManager.FindByNameAsync(request.Username);
         if (user == null) return Unauthorized();
 
@@ -39,7 +43,9 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetProfile()
     {
-        var user = await _userManager.GetUserAsync(User);
+        var user = await _userManager.GetUserAsync(User) 
+            ?? throw new InvalidOperationException("User not found");
+
         return Ok(new
         {
             user.Id,
@@ -50,4 +56,8 @@ public class AuthController : ControllerBase
     }
 }
 
-public record LoginRequest(string Username, string Password);
+public record LoginRequest(string Username, string Password)
+{
+    public string Username { get; init; } = Username ?? throw new ArgumentNullException(nameof(Username));
+    public string Password { get; init; } = Password ?? throw new ArgumentNullException(nameof(Password));
+}

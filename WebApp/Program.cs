@@ -44,6 +44,8 @@ builder.Services.AddAuthentication(options =>
 // Register Services
 builder.Services.AddScoped<IApiClientService, ApiClientService>();
 
+builder.Services.AddHttpContextAccessor();
+
 var app = builder.Build();
 
 // Middleware Pipeline

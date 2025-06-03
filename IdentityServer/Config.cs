@@ -1,43 +1,55 @@
 ﻿using Duende.IdentityServer;
 using Duende.IdentityServer.Models;
+using Shared.Constants;
+
+namespace IdentityServer;
 
 public static class Config
 {
     public static IEnumerable<IdentityResource> IdentityResources =>
-        new IdentityResource[]
+        new List<IdentityResource>
         {
             new IdentityResources.OpenId(),
             new IdentityResources.Profile(),
-            new IdentityResources.Email(),
-            new IdentityResource("roles", "User roles", new[] { "role" })
+            new IdentityResources.Email()
         };
 
     public static IEnumerable<ApiScope> ApiScopes =>
-        new ApiScope[]
+        new List<ApiScope>
         {
-            new ApiScope("api1", "My API")
+            new ApiScope(AuthConstants.Scopes.Api, "FortressAuth API")
+        };
+
+    public static IEnumerable<ApiResource> ApiResources =>
+        new List<ApiResource>
+        {
+            new ApiResource(AuthConstants.Scopes.Api, "FortressAuth API")
+            {
+                Scopes = { AuthConstants.Scopes.Api }
+            }
         };
 
     public static IEnumerable<Client> Clients =>
-        new Client[]
+        new List<Client>
         {
-            // WebApp Client
+            // Web Application Client
             new Client
             {
                 ClientId = "webapp",
-                ClientSecrets = { new Secret("secret".Sha256()) },
+                ClientName = "Web Application",
                 AllowedGrantTypes = GrantTypes.Code,
-                RedirectUris = { "https://localhost:5003/signin-oidc" },
-                PostLogoutRedirectUris = { "https://localhost:5003/signout-callback-oidc" },
+                RequirePkce = true,
+                RequireClientSecret = true,
+                ClientSecrets = { new Secret("secret".Sha256()) },
+                RedirectUris = { "https://localhost:7272/signin-oidc" },
+                PostLogoutRedirectUris = { "https://localhost:7272/signout-callback-oidc" },
                 AllowedScopes =
                 {
-                    IdentityServerConstants.StandardScopes.OpenId,
-                    IdentityServerConstants.StandardScopes.Profile,
-                    IdentityServerConstants.StandardScopes.Email,
-                    "roles",
-                    "api1"
+                    AuthConstants.Scopes.OpenId,
+                    AuthConstants.Scopes.Profile,
+                    AuthConstants.Scopes.Email,
+                    AuthConstants.Scopes.Api
                 },
-                RequirePkce = true,
                 RequireConsent = false,
                 AllowOfflineAccess = true
             }

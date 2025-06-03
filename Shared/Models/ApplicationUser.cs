@@ -24,4 +24,9 @@ public class ApplicationUser : IdentityUser
     public string GetFullName() => $"{FirstName} {LastName}";
 
     public bool HasValidRecoveryCodes() => RecoveryCodes.Any(rc => !rc.IsUsed && rc.ExpiryDate > DateTime.UtcNow);
+
+    public bool IsMfaEnabled { get; set; }
+    public string PreferredMfaMethod { get; set; }
+    public DateTime? LastLoginDate { get; set; }
+    public bool IsActive { get; set; } = true;
 }

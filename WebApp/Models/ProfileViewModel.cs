@@ -2,19 +2,23 @@
 
 public class ProfileViewModel
 {
-    public required string Name { get; set; }
-    public required string Email { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public string Email { get; set; }
     public bool MfaEnabled { get; set; }
+    public DateTime? LastLoginDate { get; set; }
 
     public ProfileViewModel()
     {
-        Name = string.Empty;
+        FirstName = string.Empty;
+        LastName = string.Empty;
         Email = string.Empty;
     }
 
-    public ProfileViewModel(string name, string email, bool mfaEnabled = false)
+    public ProfileViewModel(string firstName, string lastName, string email, bool mfaEnabled = false)
     {
-        Name = name;
+        FirstName = firstName;
+        LastName = lastName;
         Email = email;
         MfaEnabled = mfaEnabled;
     }
